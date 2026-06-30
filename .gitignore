@@ -1,0 +1,26 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores / IDEs
+.vscode/
+.idea/
+*.swp
+
+# Node (caso adicione build tools no futuro)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Variáveis de ambiente / segredos
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel/
+
+# Arquivos temporários
+*.log
+*.tmp

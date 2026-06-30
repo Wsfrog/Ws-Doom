@@ -1,0 +1,29 @@
+{
+  "nagios": {
+    "eyebrow": "write-ups · 01",
+    "title": "Nagios Core do Zero: Instalação, Dependências e NRPE",
+    "date": "Jun 2026",
+    "author": "@ws_doom",
+    "tags": ["nagios", "monitoração", "linux", "nrpe", "pnetlab"],
+    "note": "<strong>Author's Note:</strong> Guia baseado na instalação real feita em ambiente PNETLab com Ubuntu Server 22.04. Cobre desde a compilação do source até a configuração dos agentes NRPE nas máquinas da Rede Ativos.",
+    "body": "<h2>0. Pré-requisitos</h2><p>Você vai precisar de um Ubuntu Server 22.04 com acesso à internet. No nosso lab, o servidor está em <code>192.168.1.30</code> e o acesso é feito via SSH a partir do Kali Administrador (<code>192.168.3.100</code>).</p><pre>ssh Test123@192.168.1.30</pre><h2>1. Instalando Dependências</h2><p>O Nagios Core precisa ser compilado a partir do source. Antes de tudo, instale as dependências:</p><pre>sudo apt update &amp;&amp; sudo apt install -y \\\n    build-essential libgd-dev openssl libssl-dev \\\n    unzip wget apache2 php libapache2-mod-php \\\n    php-gd libnet-snmp-perl</pre><h2>2. Criando Usuário e Grupo</h2><pre>sudo useradd nagios\nsudo groupadd nagcmd\nsudo usermod -aG nagcmd nagios\nsudo usermod -aG nagcmd www-data</pre><h2>3. Compilando o Nagios Core</h2><pre>cd /tmp\nwget https://assets.nagios.com/downloads/nagioscore/releases/nagios-4.4.14.tar.gz\ntar -xzf nagios-4.4.14.tar.gz\ncd nagios-4.4.14\n./configure --with-command-group=nagcmd\nmake all\nsudo make install\nsudo make install-init\nsudo make install-config\nsudo make install-commandmode</pre><h2>4. Configurando Interface Web</h2><pre>sudo make install-webconf\nsudo htpasswd -c /usr/local/nagios/etc/htpasswd.users nagiosadmin\nsudo a2enmod rewrite cgi\nsudo systemctl restart apache2\nsudo systemctl start nagios</pre><p>Acesse pelo Kali: <code>http://192.168.1.30/nagios</code> — usuário <code>nagiosadmin</code>.</p><h2>5. Instalando NRPE nos Ativos</h2><p>Repita nos hosts da Rede Ativos (Ubuntu Server, Ubuntu Desktop, Debian Server):</p><pre>sudo apt install -y nagios-nrpe-server nagios-plugins\nsudo systemctl enable nrpe\nsudo systemctl start nrpe</pre>"
+  },
+  "ocs": {
+    "eyebrow": "write-ups · 02",
+    "title": "OCS Inventory e o erro de banco de dados que trava todo mundo",
+    "date": "Jun 2026",
+    "author": "@ws_doom",
+    "tags": ["ocs", "inventário", "mysql", "php", "linux"],
+    "note": "<strong>Author's Note:</strong> Esse erro específico de banco de dados aparece na maioria das instalações do OCS Inventory no Ubuntu 22.04. Documentando aqui o que realmente funciona.",
+    "body": "<h2>O Problema</h2><p>Após instalar o OCS Inventory e tentar acessar a interface web, aparece um erro de conexão com o banco de dados — mesmo com MySQL rodando e as credenciais corretas.</p><h2>1. Instalando Dependências</h2><pre>sudo apt install -y apache2 mysql-server php php-mysql \\\n    php-curl php-xml php-zip php-mbstring \\\n    libapache2-mod-perl2 libdbi-perl libdbd-mysql-perl \\\n    libnet-ip-perl libsoap-lite-perl</pre><h2>2. Configurando o Banco Corretamente</h2><p>Esse é o passo que a maioria erra. O charset precisa ser definido na criação:</p><pre>sudo mysql -u root\nCREATE DATABASE ocsweb CHARACTER SET utf8 COLLATE utf8_general_ci;\nCREATE USER 'ocs'@'localhost' IDENTIFIED BY 'ocspassword';\nGRANT ALL PRIVILEGES ON ocsweb.* TO 'ocs'@'localhost';\nFLUSH PRIVILEGES;\nEXIT;</pre><h2>3. Permissões no my.cnf</h2><p>Adicione ao final de <code>/etc/mysql/mysql.conf.d/mysqld.cnf</code>:</p><pre>[mysqld]\nmax_allowed_packet=64M\ncharacter-set-server=utf8\ncollation-server=utf8_general_ci</pre><pre>sudo systemctl restart mysql</pre><h2>4. Acessando a Interface</h2><p>Pelo Kali Administrador: <code>http://192.168.1.20/ocsreports</code></p><p>Na primeira vez, o setup vai pedir as credenciais do banco. Use exatamente o que foi configurado no passo 2.</p>"
+  },
+  "hardening": {
+    "eyebrow": "write-ups · 03",
+    "title": "Linux Hardening com auditd, AIDE e Fail2ban",
+    "date": "Jun 2026",
+    "author": "@ws_doom",
+    "tags": ["hardening", "linux", "auditd", "aide", "fail2ban", "blue-team"],
+    "note": "<strong>Author's Note:</strong> Pipeline de hardening aplicado em ambientes Ubuntu da pós-graduação em Defesa Cibernética. Baseado no NIST CSF 2.0 e CIS Benchmarks.",
+    "body": "<h2>1. SSH Hardening</h2><p>Edite <code>/etc/ssh/sshd_config</code>:</p><pre>PermitRootLogin no\nPasswordAuthentication no\nMaxAuthTries 3\nClientAliveInterval 300\nClientAliveCountMax 2</pre><h2>2. Fail2ban</h2><pre>sudo apt install fail2ban -y\nsudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local</pre><p>Edite <code>jail.local</code> e ajuste:</p><pre>[sshd]\nenabled = true\nmaxretry = 3\nbantime = 3600\nfindtime = 600</pre><h2>3. auditd — Monitoramento de Chamadas de Sistema</h2><pre>sudo apt install auditd -y\nsudo auditctl -w /etc/passwd -p wa -k passwd_changes\nsudo auditctl -w /var/log/auth.log -p r -k auth_log_read</pre><h2>4. AIDE — Integridade de Arquivos</h2><pre>sudo apt install aide -y\nsudo aideinit\nsudo cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db</pre><p>Para verificar integridade depois:</p><pre>sudo aide --check</pre>"
+  }
+}
